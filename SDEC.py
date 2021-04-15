@@ -14,7 +14,9 @@ from time import time
 import numpy as np
 import keras
 from collections import Counter
-import tensorflow as tf
+#import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import keras.backend as K
 from keras.engine.topology import Layer, InputSpec
 from keras.layers import Dense, Input
@@ -139,7 +141,8 @@ class ClusteringLayer(Layer):
         assert len(input_shape) == 2
         input_dim = input_shape[1]
         self.input_spec = InputSpec(dtype=K.floatx(), shape=(None, input_dim))
-        self.clusters = self.add_weight((self.n_clusters, input_dim), initializer='glorot_uniform', name='clusters')
+        #self.clusters = self.add_weight((self.n_clusters, input_dim), initializer='glorot_uniform', name='clusters')
+        self.clusters = self.add_weight(shape=(self.n_clusters, input_dim), initializer='glorot_uniform', name='clusters')
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -236,9 +239,9 @@ class SDEC(object):
                    maxiter=2e4,
                    save_dir='./results/sdec'):
 
-        print 'Update interval', update_interval
+        print( 'Update interval', update_interval)
         save_interval = x.shape[0] / self.batch_size * 5  # 5 epochs
-        print 'Save interval', save_interval
+        print( 'Save interval', save_interval)
         
         #building F batch
         import csv, os
@@ -270,7 +273,7 @@ class SDEC(object):
             F=fileF
         F.astype(int)
         # initialize cluster centers using k-means
-        print 'Initializing cluster centers with k-means.'
+        print ('Initializing cluster centers with k-means.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
         y_pred = kmeans.fit_predict(self.encoder.predict(x))
         y_pred_last = y_pred
@@ -281,7 +284,8 @@ class SDEC(object):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
-        logfile = file(save_dir + '/sdec_log.csv', 'wb')
+        #logfile = file(save_dir + '/sdec_log.csv', 'wb')
+        logfile = open(save_dir + '/sdec_log.csv', 'wb')
         logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'acc', 'nmi', 'ari', 'Q','L','Lc','Lf'])
         logwriter.writeheader()
         loss = [0,0,0]
@@ -308,11 +312,11 @@ class SDEC(object):
                     Q=np.mean(q)
                     logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, Q=Q,L=loss[0],Lc=loss[1],Lf=loss[2])
                     logwriter.writerow(logdict)
-                    print 'Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, 'Q',Q,'; loss=', loss
+                    print( 'Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, 'Q',Q,'; loss=', loss)
                 # check stop criterion
                 if ite > 0 and delta_label < tol:
-                    print 'delta_label ', delta_label, '< tol ', tol
-                    print 'Reached tolerance threshold. Stopping training.'
+                    print( 'delta_label ', delta_label, '< tol ', tol)
+                    print( 'Reached tolerance threshold. Stopping training.')
                     logfile.close()
                     break
             keras.callbacks.BaseLogger()
@@ -362,14 +366,14 @@ class SDEC(object):
             # save intermediate model
             if ite % save_interval == 0:
                 # save SDEC model checkpoints
-                print 'saving model to:', save_dir + '/SDEC_model_' + str(ite) + '.h5'
+                print( 'saving model to:', save_dir + '/SDEC_model_' + str(ite) + '.h5')
                 self.model.save_weights(save_dir + '/SDEC_model_' + str(ite) + '.h5')
 
             ite += 1
 
         # save the trained model
         logfile.close()
-        print 'saving model to:', save_dir + '/SDEC_model_final.h5'
+        print( 'saving model to:', save_dir + '/SDEC_model_final.h5')
         self.model.save_weights(save_dir + '/SDEC_model_final.h5')
         return y_pred
     
@@ -403,7 +407,7 @@ def sdec(dataset="mnist",gamma=0.1,beta=1,maxiter=2e4,update_interval=20,tol=0.0
         x,y=load_cifar()
         update_interval=40
     beta=beta
-    print gamma,dataset,beta
+    print( gamma,dataset,beta)
     # prepare the SDEC model
     try:
         count = Counter(y)
@@ -420,8 +424,8 @@ def sdec(dataset="mnist",gamma=0.1,beta=1,maxiter=2e4,update_interval=20,tol=0.0
     y_pred = dec.clustering(x, y=y, tol=tol, maxiter=maxiter,
                                 update_interval=update_interval, save_dir=save_dir)
     plot_model(dec.model, to_file='sdecmodel.png', show_shapes=True)
-    print 'acc:', cluster_acc(y, y_pred)
-    print 'clustering time: ', (time() - t0)
+    print ('acc:', cluster_acc(y, y_pred))
+    print ('clustering time: ', (time() - t0))
 
 if __name__ == "__main__":
     # setting the hyper parameters
@@ -437,6 +441,6 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--beta', default=0.1, type=int)
     args = parser.parse_args()
-    print args
+    print (args)
     sdec(args.dataset,args.gamma,args.beta,args.maxiter,args.update_interval,args.tol,args.batch_size);    
     
